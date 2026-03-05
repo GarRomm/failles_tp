@@ -1,13 +1,13 @@
 <?php
 // Configuration de la base de données - FAILLE 1 : Informations sensibles visibles
 
-define('DB_HOST', 'localhost');
+define('DB_HOST', '127.0.0.1');
 define('DB_USER', 'root');
-define('DB_PASSWORD', '');
+define('DB_PASSWORD', 'root');
 define('DB_NAME', 'blogsecure');
 
 // Connexion à la base de données
-$conn = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME);
+$conn = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, 8889);
 
 // Vérifier la connexion
 if ($conn->connect_error) {
