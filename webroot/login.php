@@ -2,10 +2,14 @@
 // login.php - Page de connexion
 require 'auth.php';
 
+// si déjà connecté, pas besoin d'être là
 if (isLoggedIn()) {
     header("Location: index.php");
     exit;
 }
+
+// token CSRF pour protéger le formulaire — OWASP A01
+$csrf = generateCsrfToken();
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -36,39 +40,31 @@ if (isLoggedIn()) {
     <header>
         <h1>BlogSecure</h1>
     </header>
-    
     <nav>
         <a href="index.php">Accueil</a>
         <a href="register.php">Inscription</a>
     </nav>
-    
     <div class="container">
         <h2>Connexion</h2>
-        
-        <?php 
-        if (isset($_SESSION['error'])) {
-            echo '<div class="error">' . $_SESSION['error'] . '</div>';
-            unset($_SESSION['error']);
-        }
-        ?>
-        
-        <!-- FAILLE 7 : Pas de protection CSRF sur le formulaire -->
+        <?php if (isset($_SESSION['error'])): ?>
+            <!-- htmlspecialchars pour pas afficher du HTML brut — OWASP A03 XSS -->
+            <div class="error"><?php echo htmlspecialchars($_SESSION['error']); unset($_SESSION['error']); ?></div>
+        <?php endif; ?>
+
         <form method="POST" action="auth.php">
             <input type="hidden" name="action" value="login">
-            
+            <!-- token CSRF injecté dans le form — OWASP A01 -->
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf); ?>">
             <div class="form-group">
                 <label for="username">Nom d'utilisateur:</label>
                 <input type="text" id="username" name="username" required>
             </div>
-            
             <div class="form-group">
                 <label for="password">Mot de passe:</label>
                 <input type="password" id="password" name="password" required>
             </div>
-            
             <button type="submit">Se connecter</button>
         </form>
-        
         <div class="link">
             <p>Pas encore inscrit ? <a href="register.php">S'inscrire</a></p>
         </div>

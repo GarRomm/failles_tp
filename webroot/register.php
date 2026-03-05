@@ -2,10 +2,14 @@
 // register.php - Page d'inscription
 require 'auth.php';
 
+// si déjà connecté, pas besoin d'être là
 if (isLoggedIn()) {
     header("Location: index.php");
     exit;
 }
+
+// token CSRF pour protéger le formulaire — OWASP A01
+$csrf = generateCsrfToken();
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -37,51 +41,40 @@ if (isLoggedIn()) {
     <header>
         <h1>BlogSecure</h1>
     </header>
-    
     <nav>
         <a href="index.php">Accueil</a>
         <a href="login.php">Connexion</a>
     </nav>
-    
     <div class="container">
         <h2>Inscription</h2>
-        
-        <?php 
-        if (isset($_SESSION['error'])) {
-            echo '<div class="error">' . $_SESSION['error'] . '</div>';
-            unset($_SESSION['error']);
-        }
-        if (isset($_SESSION['message'])) {
-            echo '<div class="success">' . $_SESSION['message'] . '</div>';
-            unset($_SESSION['message']);
-        }
-        ?>
-        
-        <!-- FAILLE 8 : Pas de protection CSRF sur le formulaire -->
+        <?php if (isset($_SESSION['error'])): ?>
+            <!-- htmlspecialchars pour pas afficher du HTML brut — OWASP A03 XSS -->
+            <div class="error"><?php echo htmlspecialchars($_SESSION['error']); unset($_SESSION['error']); ?></div>
+        <?php endif; ?>
+        <?php if (isset($_SESSION['message'])): ?>
+            <div class="success"><?php echo htmlspecialchars($_SESSION['message']); unset($_SESSION['message']); ?></div>
+        <?php endif; ?>
+
         <form method="POST" action="auth.php">
             <input type="hidden" name="action" value="register">
-            
+            <!-- token CSRF injecté dans le form — OWASP A01 -->
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf); ?>">
             <div class="form-group">
                 <label for="username">Nom d'utilisateur:</label>
                 <input type="text" id="username" name="username" required>
             </div>
-            
             <div class="form-group">
                 <label for="email">Email:</label>
                 <input type="email" id="email" name="email" required>
             </div>
-            
             <div class="form-group">
-                <label for="password">Mot de passe:</label>
-                <input type="password" id="password" name="password" required>
+                <!-- minlength côté client, la vraie validation est dans auth.php -->
+                <label for="password">Mot de passe (8 caractères min):</label>
+                <input type="password" id="password" name="password" required minlength="8">
             </div>
-            
             <button type="submit">S'inscrire</button>
         </form>
-        
-        <div class="link">
-            <p>Déjà inscrit ? <a href="login.php">Se connecter</a></p>
-        </div>
+        <div class="link"><p>Déjà inscrit ? <a href="login.php">Se connecter</a></p></div>
     </div>
 </body>
 </html>

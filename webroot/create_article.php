@@ -1,28 +1,51 @@
 <?php
-// create_article.php - Création d'un nouvel article
+// create_article.php - Création d'un article
 require 'auth.php';
 
+// on laisse pas les non-connectés accéder — OWASP A01
 if (!isLoggedIn()) {
     header("Location: login.php");
     exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $title = $_POST['title'];
-    $content = $_POST['content'];
-    $user_id = $_SESSION['user_id'];
-    
-    // FAILLE 16 : Injection SQL - pas de prepared statement
-    $sql = "INSERT INTO articles (user_id, title, content) 
-            VALUES ($user_id, '$title', '$content')";
-    
-    if ($conn->query($sql)) {
-        $_SESSION['message'] = "Article créé avec succès";
-        header("Location: index.php");
-    } else {
-        $_SESSION['error'] = "Erreur : " . $conn->error;
+    // token CSRF obligatoire — OWASP A01
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        $_SESSION['error'] = "Requête invalide (CSRF).";
+        header("Location: create_article.php");
+        exit;
     }
+
+    $title   = trim($_POST['title'] ?? '');
+    $content = trim($_POST['content'] ?? '');
+    // cast (int) sur l'ID de session, pas de risque mais bonne pratique
+    $user_id = (int) $_SESSION['user_id'];
+
+    // validation basique, on refuse les champs vides
+    if ($title === '' || $content === '') {
+        $_SESSION['error'] = "Le titre et le contenu sont requis.";
+        header("Location: create_article.php");
+        exit;
+    }
+
+    // requête préparée — OWASP A03 Injection SQL
+    $stmt = $conn->prepare("INSERT INTO articles (user_id, title, content) VALUES (?, ?, ?)");
+    $stmt->bind_param('iss', $user_id, $title, $content);
+
+    if ($stmt->execute()) {
+        $_SESSION['message'] = "Article créé avec succès.";
+        $stmt->close();
+        header("Location: index.php");
+        exit;
+    } else {
+        error_log("Erreur article : " . $stmt->error); // log serveur — OWASP A09
+        $_SESSION['error'] = "Une erreur est survenue.";
+    }
+    $stmt->close();
 }
+
+// token CSRF pour le formulaire
+$csrf = generateCsrfToken();
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -49,37 +72,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body>
-    <header>
-        <h1>BlogSecure</h1>
-    </header>
-    
+    <header><h1>BlogSecure</h1></header>
     <nav>
         <a href="index.php">Accueil</a>
-        <a href="auth.php?logout=1">Déconnexion</a>
+        <!-- déconnexion en POST + CSRF, un lien GET c'est trop facile à exploiter — OWASP A01 -->
+        <form method="POST" action="auth.php" style="display:inline;">
+            <input type="hidden" name="logout" value="1">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf); ?>">
+            <button type="submit" style="background:none;border:none;color:white;cursor:pointer;font-size:1em;padding:0;margin:0 15px;">Déconnexion</button>
+        </form>
     </nav>
-    
     <div class="container">
         <h2>Créer un nouvel article</h2>
-        
-        <?php 
-        if (isset($_SESSION['error'])) {
-            echo '<div class="error">' . $_SESSION['error'] . '</div>';
-            unset($_SESSION['error']);
-        }
-        ?>
-        
-        <!-- FAILLE 17 : Pas de protection CSRF -->
+        <?php if (isset($_SESSION['error'])): ?>
+            <!-- htmlspecialchars pour pas afficher du HTML brut — OWASP A03 XSS -->
+            <div class="error"><?php echo htmlspecialchars($_SESSION['error']); unset($_SESSION['error']); ?></div>
+        <?php endif; ?>
         <form method="POST" action="">
+            <!-- token CSRF injecté dans le form — OWASP A01 -->
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf); ?>">
             <div class="form-group">
                 <label for="title">Titre:</label>
                 <input type="text" id="title" name="title" required>
             </div>
-            
             <div class="form-group">
                 <label for="content">Contenu:</label>
                 <textarea id="content" name="content" rows="10" required></textarea>
             </div>
-            
             <button type="submit">Publier l'article</button>
         </form>
     </div>
