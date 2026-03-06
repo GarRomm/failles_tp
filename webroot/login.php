@@ -1,5 +1,4 @@
 <?php
-// login.php - Page de connexion
 require 'auth.php';
 
 // si déjà connecté, pas besoin d'être là
