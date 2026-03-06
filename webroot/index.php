@@ -88,7 +88,7 @@ $csrf = generateCsrfToken();
                     echo '<form method="POST" action="delete_article.php" style="display:inline;" onsubmit="return confirm(\'Êtes-vous sûr ?\')">'
                        . '<input type="hidden" name="id" value="' . (int)$article['id'] . '">'
                        . '<input type="hidden" name="csrf_token" value="' . htmlspecialchars($csrf) . '">'
-                       . '<button type="submit" class="btn danger">Supprimer</button>'
+                       . '<a href="#" class="btn danger" onclick="this.closest(\'form\').submit(); return false;">Supprimer</a>'
                        . '</form>';
                 }
                 echo '</div>';
